@@ -3,7 +3,7 @@ import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
-import helmet from "helmet/index.cjs";
+import helmetModule from "helmet";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -18,6 +18,7 @@ const sessionSecret = authSecret;
 
 const app = express();
 app.disable("x-powered-by");
+const helmet = (helmetModule as unknown as { default: typeof helmetModule }).default ?? helmetModule;
 app.use(helmet());
 app.use(cors({ origin: frontendOrigins.length ? frontendOrigins : false, credentials: true, methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"] }));
 app.use(express.json({ limit: "100kb" }));

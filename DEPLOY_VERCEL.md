@@ -4,7 +4,7 @@ Deploy two Vercel projects from the same Git repository: the Express API first, 
 
 ## 1. Deploy the API
 
-Create a Vercel project connected to this repository and set **Root Directory** to `server`. Vercel detects the existing Express app exported from `src/index.ts` and deploys it as a serverless function. Use the Node.js runtime, `npm ci` to install, and `npm run build` to compile-check the API.
+Create a Vercel project connected to this repository and set **Root Directory** to `server`. Vercel detects the Express app exported by `src/index.ts` and deploys it as a Node.js Function. Use `npm ci` for install and `npm run build` for the build command. Leave the output directory unset; this is a serverless API, not a static build. The API TypeScript build emits `dist/` as a compile check, while Vercel serves the exported Express app.
 
 Add these variables in the API project's Vercel settings for Production:
 
@@ -29,13 +29,11 @@ Add these variables in the API project's Vercel settings for Production:
 
 Paste the full CA certificate as the value of `DB_SSL_CA`; if the Vercel variable editor requires a single line, replace line breaks with literal `\n`. Keep `AUTH_SECRET`, database credentials, the CA certificate, and SMTP credentials in Vercel's environment-variable settings. Never use a `VITE_` prefix for secrets.
 
-Deploy the API and copy its deployment hostname. Open `https://YOUR-API-DEPLOYMENT.vercel.app/api/health`; it should return `{"status":"ok","database":"connected"}`. If your Aiven database has already been migrated and imported, do not run migrations again. If it has not, run `npm --prefix server run db:migrate` once from a trusted environment configured with the same Aiven connection variables.
+Deploy the API and copy its production domain (not a preview deployment URL). Open `https://YOUR-API-DEPLOYMENT.vercel.app/api/health`; it should return `{"status":"ok","database":"connected"}`. A successful build alone does not confirm the runtime environment variables or database connection are correct. If your Aiven database has already been migrated and imported, do not run migrations again. If it has not, run `npm --prefix server run db:migrate` once from a trusted environment configured with the same Aiven connection variables.
 
 ## 2. Deploy the frontend
 
-Create another Vercel project from the same Git repository. Set **Root Directory** to the repository root. Vercel should detect Vite; use `npm ci`, `npm run build`, and `dist` as the output directory.
-
-Before deploying the frontend, edit the root `vercel.json` and replace `YOUR-API-DEPLOYMENT.vercel.app` with the API hostname copied above. The checked-in file already proxies API requests and routes other paths to the Vite SPA:
+Create a second Vercel project from this repository with **Root Directory** set to the repository root. Use `npm ci` for install, `npm run build` for build, and `dist` for output. Before deploying the frontend, edit the root `vercel.json` and replace `YOUR-API-DEPLOYMENT.vercel.app` with the API project's production domain copied above. The placeholder is intentionally not a working API address; API requests will fail until it is replaced. The config proxies API requests and routes other paths to the Vite SPA:
 
 ```json
 {
