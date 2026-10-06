@@ -3,7 +3,7 @@ import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
-import helmet from "helmet";
+import { helmet } from "helmet";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";

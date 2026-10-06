@@ -49,6 +49,6 @@ In SQLyog, refresh the Aiven connection and compare table names and row counts w
 
 ## 6. Point a deployed API at Aiven
 
-In the backend host's secret/environment settings, add the same `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`, plus `DB_SSL=true` and `DB_SSL_CA` containing the Aiven CA PEM. Also configure `AUTH_SECRET`, `FRONTEND_ORIGIN`, and SMTP settings as described in [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md) if deploying there. Redeploy and check `/api/health`.
+In the Vercel API project's Production environment settings, add the same `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`, plus `DB_SSL=true` and `DB_SSL_CA` containing the full Aiven CA PEM. Also configure `AUTH_SECRET`, `FRONTEND_ORIGIN`, and SMTP settings as described in [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md). Redeploy and check `/api/health`.
 
 Never expose database credentials or the CA in frontend code, browser storage, or variables prefixed with `VITE_`. Restrict Aiven's allowed IPs/network access when your hosting provider has stable outbound IPs. Keep a separate backup before any future schema or data changes.

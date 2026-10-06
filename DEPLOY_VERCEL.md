@@ -1,45 +1,41 @@
-# Publish Barangay DMMS with Vercel
+# Deploy Barangay DMMS to Vercel with Aiven MySQL
 
-The project has two applications: a Vite frontend at the repository root and an Express API in `server/`. Deploy them as separate Vercel projects from the same Git repository. Vercel can run the Express API as a function; the API now exports its Express app for that runtime.
+Deploy two Vercel projects from the same Git repository: the Express API first, then the Vite frontend. The frontend proxies `/api` calls to the API deployment, so the browser uses one origin and the secure session cookie works without cross-site cookies.
 
-## 1. Prepare the database
+## 1. Deploy the API
 
-The MySQL database on your computer is not reachable by a deployed Vercel app. Use a managed MySQL provider or a MySQL server hosted on a network that accepts secure connections from Vercel.
+Create a Vercel project connected to this repository and set **Root Directory** to `server`. Vercel detects the existing Express app exported from `src/index.ts` and deploys it as a serverless function. Use the Node.js runtime, `npm ci` to install, and `npm run build` to compile-check the API.
 
-Before moving the database, make a backup and import `barangay_drainage_db` into the hosted MySQL instance. Keep the current database name if possible. Configure the hosted database's TLS and network access according to its provider. Never put database credentials in frontend variables or commit them to Git.
-
-## 2. Deploy the API
-
-In Vercel, import the Git repository as a new project and set **Root Directory** to `server`. Use the Express framework preset if detected. The API entry point is `src/index.ts`; the build command is `npm run build`.
-
-Add these variables in the API project's Vercel settings for Production (and Preview if needed):
+Add these variables in the API project's Vercel settings for Production:
 
 | Variable | Value |
 | --- | --- |
 | `NODE_ENV` | `production` |
-| `DB_HOST` | Hostname from the managed MySQL provider |
-| `DB_PORT` | Provider's MySQL port, usually `3306` |
-| `DB_NAME` | `barangay_drainage_db` |
-| `DB_USER` | A dedicated app database user |
-| `DB_PASSWORD` | That database user's password |
+| `DB_HOST` | Hostname shown in your Aiven service connection details |
+| `DB_PORT` | Port shown in Aiven (often not `3306`) |
+| `DB_NAME` | The actual Aiven database name |
+| `DB_USER` | Aiven database username |
+| `DB_PASSWORD` | Aiven database password |
+| `DB_SSL` | `true` |
+| `DB_SSL_CA` | Contents of the Aiven service CA certificate (PEM) |
 | `DB_POOL_MAX` | Start with `2` for serverless instances |
 | `AUTH_SECRET` | A random secret of at least 32 characters |
-| `FRONTEND_ORIGIN` | Exact production frontend origin, such as `https://your-site.vercel.app` |
+| `FRONTEND_ORIGIN` | Exact production frontend origin, e.g. `https://your-site.vercel.app` |
 | `SMTP_HOST` | `smtp.gmail.com` when using Gmail |
 | `SMTP_PORT` | `465` |
 | `SMTP_USER` | Gmail address used to send reset codes |
 | `SMTP_PASSWORD` | Gmail App Password |
 | `SMTP_FROM` | Sender address, usually the same Gmail address |
 
-Keep `AUTH_SECRET`, database credentials, and SMTP credentials in Vercel's environment-variable settings. Do not use a `VITE_` prefix for secrets.
+Paste the full CA certificate as the value of `DB_SSL_CA`; if the Vercel variable editor requires a single line, replace line breaks with literal `\n`. Keep `AUTH_SECRET`, database credentials, the CA certificate, and SMTP credentials in Vercel's environment-variable settings. Never use a `VITE_` prefix for secrets.
 
-After deploying the API, open `https://YOUR-API-URL/api/health`. It should return `{"status":"ok","database":"connected"}`. Run the database migrations against the hosted database once, using its connection settings; do not run migrations on each API startup.
+Deploy the API and copy its deployment hostname. Open `https://YOUR-API-DEPLOYMENT.vercel.app/api/health`; it should return `{"status":"ok","database":"connected"}`. If your Aiven database has already been migrated and imported, do not run migrations again. If it has not, run `npm --prefix server run db:migrate` once from a trusted environment configured with the same Aiven connection variables.
 
-## 3. Deploy the frontend
+## 2. Deploy the frontend
 
-Create another Vercel project from the same Git repository. Set **Root Directory** to the repository root. Vercel should detect Vite; the build command is `npm run build` and the output directory is `dist`.
+Create another Vercel project from the same Git repository. Set **Root Directory** to the repository root. Vercel should detect Vite; use `npm ci`, `npm run build`, and `dist` as the output directory.
 
-For production, add a root `vercel.json` that proxies API requests to the API project's URL. Replace the destination hostname with the actual API deployment hostname:
+Before deploying the frontend, edit the root `vercel.json` and replace `YOUR-API-DEPLOYMENT.vercel.app` with the API hostname copied above. The checked-in file already proxies API requests and routes other paths to the Vite SPA:
 
 ```json
 {
@@ -47,7 +43,7 @@ For production, add a root `vercel.json` that proxies API requests to the API pr
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR-API-URL.vercel.app/api/:path*"
+      "destination": "https://YOUR-API-DEPLOYMENT.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
@@ -57,13 +53,15 @@ For production, add a root `vercel.json` that proxies API requests to the API pr
 }
 ```
 
-This keeps browser API requests and the session cookie on the frontend's origin. Set `FRONTEND_ORIGIN` in the API project to the exact frontend production URL. If you use a custom domain, update that variable to the custom origin and redeploy the API.
+Deploy the frontend, then set `FRONTEND_ORIGIN` in the API project to the exact frontend production URL and redeploy the API. If you use a custom frontend domain, update the variable to that origin. The API accepts comma-separated exact origins if you also need to test Vercel preview deployments.
 
-The frontend can leave `VITE_API_BASE_URL` unset when using this proxy; it calls `/api/...` on its own origin. The API client includes credentials for the session cookie.
+Leave `VITE_API_BASE_URL` unset; the frontend calls `/api/...` on its own origin, and the rewrite proxies the request while keeping the session cookie first-party.
 
-## 4. Production checks
+## 3. Production checks
 
-- Test registration, login, role access, report CRUD, inspections, maintenance, and password reset on the deployed URLs.
+- Confirm `/api/health` reports a connected database, and confirm the frontend's API calls reach the API deployment.
+- Test registration, login, role access, report CRUD, inspections, maintenance, and password reset.
 - Check the API project's Vercel logs if a request returns an error.
 - Vercel instances can start and stop independently. Login and password-reset rate limits currently use in-memory maps, so they can reset between function instances; replace them with a shared store before relying on those limits in production.
-- Never deploy against your local-only MySQL address such as `localhost` or `127.0.0.1`.
+- Ensure Aiven allows the API's outbound connections. Do not use `localhost` or `127.0.0.1` as the database host.
+- Never commit `.env` files or put database credentials or the CA certificate in frontend variables.
