@@ -1,0 +1,10 @@
+{
+  "description": "Provides a user-friendly interface to interact with and manage system functions efficiently, enhancing user experience and operational control.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
